@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala Timer</title>
+    <style>
+       body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            background-image: url('https://images.unsplash.com/photo-1526779259212-939e64788e3c?crop=entropy&cs=srgb&fm=jpg&ixid=M3wzMjM4NDZ8MHwxfHJhbmRvbXx8fHx8fHx8fDE3MTMyNDY1NjV8&ixlib=rb-4.0.3&q=85');
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        header {
+            background-color: #dddddd6e;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .timer {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .history-section {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .medHlog {
+            border-bottom: 1px solid #ccc;
+            padding: 10px 0;
+            position: relative;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            top: 10px;
+        }
+
+        .progress-bar {
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            height: 20px;
+            margin-top: 10px;
+        }
+
+        .progress {
+            background-color: #76c7c0;
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+
+        .import-export {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .import-export button {
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 id="mandalOngoing">[mandal name here]</h1>
+    </header>
+
+    <div class="grid-container">
+        <div class="card">
+            <h2>Create Mandal</h2>
+            <button onclick="showMandalForm()">Create New Mandal</button>
+            <div id="mandalForm" class="hidden">
+                <input type="text" id="mandalName" placeholder="Mandal Focus or Intention">
+                <select id="mandalDuration">
+                    <option value="48">48 days (96 sessions)</option>
+                    <option value="90">90 days (1 session/day)</option>
+                </select>
+                <input type="date" id="startDate">
+                <button onclick="saveMandal()">Save Mandal</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 id="mandalaName"></h2>
+            <p id="mandalDetails"></p>
+            <button id="createSession" onclick="startSession()">Create a Meditation Session</button>
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Timer</h2>
+            <div class="timer" id="timer">13:00</div>
+            <button onclick="startTimer()">Start</button>
+            <button onclick="stopTimer()">Stop</button>
+        </div>
+
+        <div class="card history-section">
+            <h2>Meditation History</h2>
+            <div id="meditationHistory"></div>
+        </div>
+
+        <div class="card history-section">
+            <h2>Mandal History</h2>
+            <div id="mandalHistory"></div>
+        </div>
+
+        <div class="card">
+            <h2>Data Management</h2>
+            <div class="import-export">
+                <button onclick="exportData()">Export Data</button>
+                <button onclick="document.getElementById('fileInput').click()">Import Data</button>
+                <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ... (All JavaScript functions from the previous response remain here) ...
+
+        // Initialize the page
+        updateMandalaHeader();
+        displayMeditationHistory();
+        displayMandalHistory();
+    </script>
+  <script>
+    
+    
+    let timerInterval;
+    let minutes = 13;
+    let seconds = 0;
+    let sessionStartTime;
+
+    function showMandalForm() {
+        document.getElementById('mandalForm').classList.remove('hidden');
+    }
+
+    function saveMandal() {
+        const name = document.getElementById('mandalName').value;
+        const duration = parseInt(document.getElementById('mandalDuration').value);
+        const startDate = document.getElementById('startDate').value || new Date().toISOString().split('T')[0];
+
+        if (!name || !duration || !startDate) {
+            alert('Please fill all fields');
+            return;
+        }
+
+        const mandal = {
+            name,
+            duration,
+            startDate,
+            endDate: calculateEndDate(startDate, duration),
+            completed: false
+        };
+
+        const mandalProgress = JSON.parse(localStorage.getItem('mandalProgress')) || [];
+        mandalProgress.unshift(mandal);
+        localStorage.setItem('mandalProgress', JSON.stringify(mandalProgress));
+
+        updateMandalaHeaderFromLocalStorage();
+        displayMandalHistory();
+        document.getElementById('mandalForm').classList.add('hidden');
+    }
+
+    function calculateEndDate(startDate, duration) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + duration - 1);
+        return date.toISOString().split('T')[0];
+    }
+
+    function updateMandalaHeaderFromLocalStorage() {
+        const mandalProgress = JSON.parse(localStorage.getItem('mandalProgress')) || [];
+        if (mandalProgress.length > 0) {
+            const currentMandal = mandalProgress[0];
+            const startDate = new Date(currentMandal.startDate);
+            const today = new Date();
+            const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+            document.getElementById('mandalOngoing').textContent = `${currentMandal.name} - Day ${daysPassed}`;
+            document.getElementById('mandalaName').textContent = currentMandal.name;
+            document.getElementById('mandalDetails').textContent = `Start: ${currentMandal.startDate} | End: ${currentMandal.endDate}`;
+
+            const progress = (daysPassed / currentMandal.duration) * 100;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+        }
+    }
+
+    function startSession() {
+        document.getElementById('timer').textContent = '13:00';
+        minutes = 13;
+        seconds = 0;
+        sessionStartTime = new Date();
+    }
+
+    function startTimer() {
+        if (!timerInterval) {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        logMeditationSession();
+    }
+
+    function updateTimer() {
+        if (seconds === 0) {
+            if (minutes === 0) {
+                stopTimer();
+                return;
+            }
+            minutes--;
+            seconds = 59;
+        } else {
+            seconds--;
+        }
+        document.getElementById('timer').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function logMeditationSession() {
+        const sessionEndTime = new Date();
+        const duration = (sessionEndTime - sessionStartTime) / 1000; // duration in seconds
+        const session = {
+            date: sessionStartTime.toISOString().split('T')[0],
+            startTime: sessionStartTime.toTimeString().split(' ')[0],
+            endTime: sessionEndTime.toTimeString().split(' ')[0],
+            duration: `${Math.floor(duration / 60)} minutes ${Math.round(duration % 60)} seconds`,
+            notes: "" // Add an empty notes field
+        };
+
+        const meditationHistory = JSON.parse(localStorage.getItem('meditationHistory')) || [];
+        meditationHistory.unshift(session);
+        localStorage.setItem('meditationHistory', JSON.stringify(meditationHistory));
+
+        displayMeditationHistory();
+    }
+
+    function displayMeditationHistory() {
+        const meditationHistory = JSON.parse(localStorage.getItem('meditationHistory')) || [];
+        const historyContainer = document.getElementById('meditationHistory');
+        historyContainer.innerHTML = '';
+
+        meditationHistory.forEach((session, index) => {
+            const sessionElement = document.createElement('div');
+            sessionElement.classList.add('medHlog');
+            sessionElement.innerHTML = `
+                <p>Date: ${session.date}</p>
+                <p>Time: ${session.startTime} - ${session.endTime}</p>
+                <p>Duration: ${session.duration}</p>
+                <textarea class="session-notes" onblur="updateSessionNotes(${index}, this.value)" placeholder="Add notes here...">${session.notes || ""}</textarea>
+                <button class="delete-btn" onclick="deleteMeditationSession(${index})">Delete</button>
+            `;
+            historyContainer.appendChild(sessionElement);
+        });
+    }
+
+    function updateSessionNotes(index, notes) {
+        const meditationHistory = JSON.parse(localStorage.getItem('meditationHistory')) || [];
+        if (meditationHistory[index]) {
+            meditationHistory[index].notes = notes;
+            localStorage.setItem('meditationHistory', JSON.stringify(meditationHistory));
+        }
+    }
+
+    function deleteMeditationSession(index) {
+        const meditationHistory = JSON.parse(localStorage.getItem('meditationHistory')) || [];
+        meditationHistory.splice(index, 1);
+        localStorage.setItem('meditationHistory', JSON.stringify(meditationHistory));
+        displayMeditationHistory();
+    }
+
+    function displayMandalHistory() {
+        const mandalProgress = JSON.parse(localStorage.getItem('mandalProgress')) || [];
+        const historyContainer = document.getElementById('mandalHistory');
+        historyContainer.innerHTML = '';
+
+        mandalProgress.forEach((mandal, index) => {
+            const mandalElement = document.createElement('div');
+            mandalElement.classList.add('medHlog');
+            mandalElement.innerHTML = `
+                <p>Name: ${mandal.name}</p>
+                <p>Duration: ${mandal.duration} days</p>
+                <p>Start: ${mandal.startDate} | End: ${mandal.endDate}</p>
+                <p>Status: ${mandal.completed ? 'Completed' : 'Ongoing'}</p>
+                <button class="delete-btn" onclick="deleteMandalSession(${index})">Delete</button>
+            `;
+            historyContainer.appendChild(mandalElement);
+        });
+    }
+
+    function deleteMandalSession(index) {
+        const mandalProgress = JSON.parse(localStorage.getItem('mandalProgress')) || [];
+        mandalProgress.splice(index, 1);
+        localStorage.setItem('mandalProgress', JSON.stringify(mandalProgress));
+        displayMandalHistory();
+        updateMandalaHeaderFromLocalStorage();
+    }
+
+    function exportData() {
+        const data = {
+            meditationHistory: JSON.parse(localStorage.getItem('meditationHistory')) || [],
+            mandalProgress: JSON.parse(localStorage.getItem('mandalProgress')) || []
+        };
+
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'mandala_data.json';
+
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.meditationHistory && data.mandalProgress) {
+                        localStorage.setItem('meditationHistory', JSON.stringify(data.meditationHistory));
+                        localStorage.setItem('mandalProgress', JSON.stringify(data.mandalProgress));
+                        alert('Data imported successfully!');
+                        updateMandalaHeaderFromLocalStorage();
+                        displayMeditationHistory();
+                        displayMandalHistory();
+                    } else {
+                        throw new Error('Invalid data format');
+                    }
+                } catch (error) {
+                    alert('Error importing data: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    }
+
+    // Initialize the page
+    updateMandalaHeaderFromLocalStorage();
+    displayMeditationHistory();
+    displayMandalHistory();
+
+  </script>
+</body>
+</html>
